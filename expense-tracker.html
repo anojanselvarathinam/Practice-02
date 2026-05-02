@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExpenseOS</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:       #0a0a0f;
+  --surface:  #111118;
+  --surface2: #1a1a26;
+  --border:   #2a2a3e;
+  --accent:   #7c6af7;
+  --gold:     #f7c26a;
+  --teal:     #6af7c2;
+  --red:      #f76a6a;
+  --text:     #e8e8f0;
+  --dim:      #6a6a88;
+  --muted:    #3a3a52;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(124,106,247,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,106,247,.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* PAGE SWITCHING — each page hidden by default */
+#loginPage, #adminPage, #userPage {
+  display: none;
+}
+
+/* LOGIN uses flex centering */
+#loginPage.active {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ADMIN and USER are plain blocks */
+#adminPage.active,
+#userPage.active {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── LOGIN ── */
+.login-box {
+  width: 400px;
+  max-width: 94vw;
+  animation: fadeUp .5s ease both;
+}
+
+.logo { text-align: center; margin-bottom: 38px; }
+
+.logo-icon {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  border-radius: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 40px rgba(124,106,247,.35);
+}
+
+.logo h1 { font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
+.logo p  { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 2px; margin-top: 4px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  position: relative;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.field { margin-bottom: 18px; }
+.field label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--dim); text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.field input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 15px;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124,106,247,.15);
+}
+
+.btn-login {
+  width: 100%; padding: 14px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 6px;
+  transition: background .2s, transform .15s;
+  box-shadow: 0 4px 20px rgba(124,106,247,.3);
+}
+.btn-login:hover { background: #9180ff; transform: translateY(-1px); }
+
+.err {
+  display: none; margin-top: 12px;
+  background: rgba(247,106,106,.1);
+  border: 1px solid rgba(247,106,106,.3);
+  color: var(--red); border-radius: 10px;
+  padding: 11px 14px;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+}
+
+.login-hint {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--muted);
+  text-align: center; line-height: 1.9;
+}
+.login-hint b { color: var(--dim); }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  height: 60px;
+  background: rgba(11,11,18,.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+
+.brand { font-size: 17px; font-weight: 800; letter-spacing: -.3px; display: flex; align-items: center; gap: 8px; }
+.brand-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); animation: blink 2s infinite; }
+
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 5px 14px 5px 6px;
+  font-size: 13px; font-weight: 600;
+}
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; text-transform: uppercase;
+}
+.av-admin { background: linear-gradient(135deg, var(--gold), #f7a26a); color: #000; }
+.av-user  { background: linear-gradient(135deg, var(--accent), var(--teal)); color: #000; }
+
+.btn-out {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--dim); padding: 7px 14px; border-radius: 8px;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: border-color .2s, color .2s;
+}
+.btn-out:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── MAIN ── */
+.main {
+  max-width: 860px; margin: 0 auto;
+  padding: 36px 24px;
+  position: relative; z-index: 1;
+}
+
+.page-tag   { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase; margin-bottom: 6px; }
+.page-title { font-size: 32px; font-weight: 800; letter-spacing: -1px; margin-bottom: 28px; }
+
+/* ── ADMIN STATS ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px; margin-bottom: 28px;
+}
+@media(max-width:580px){ .stats-row { grid-template-columns: 1fr; } }
+
+.stat-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 22px;
+  animation: fadeUp .4s ease both;
+}
+.stat-box .s-label {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 10px;
+}
+.stat-box .s-val { font-size: 42px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+.s-purple .s-val { color: var(--accent); }
+.s-gold   .s-val { color: var(--gold);   }
+.s-teal   .s-val { color: var(--teal);   }
+
+.section-label {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--dim);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px; margin-bottom: 14px;
+}
+
+/* ── USER ROWS (admin) ── */
+.user-rows { display: flex; flex-direction: column; gap: 10px; }
+
+.user-row {
+  display: flex; align-items: center; gap: 13px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  transition: border-color .2s;
+  animation: fadeUp .35s ease both;
+}
+.user-row:hover { border-color: var(--accent); }
+
+.u-avatar {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #000;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.u-name { flex: 1; font-weight: 700; font-size: 15px; }
+.u-tag {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; color: var(--dim);
+}
+
+.empty-box {
+  text-align: center; padding: 48px 20px;
+  border: 1px dashed var(--border); border-radius: 16px;
+  color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px;
+}
+.empty-box .big { font-size: 36px; margin-bottom: 10px; }
+
+/* ── USER TOTAL ── */
+.total-card {
+  background: linear-gradient(135deg, var(--surface2), rgba(124,106,247,.12));
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 22px 28px; margin-bottom: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  animation: fadeUp .4s ease both;
+}
+.t-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; }
+.t-val   { font-size: 36px; font-weight: 800; letter-spacing: -1.5px; color: var(--teal); }
+.t-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+/* ── EXPENSE LAYOUT ── */
+.expense-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px; align-items: start;
+}
+@media(max-width:640px){ .expense-layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 26px;
+  position: relative; animation: fadeUp .4s ease both;
+}
+.panel::before {
+  content: '';
+  position: absolute; top: 0; left: 15%; right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--teal), transparent);
+}
+.panel h3 { font-size: 16px; font-weight: 800; margin-bottom: 18px; }
+
+.mono-label {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: 2px; color: var(--dim);
+  text-transform: uppercase; display: block; margin-bottom: 7px;
+}
+.inp {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 13px;
+  color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px;
+  outline: none; margin-bottom: 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,106,247,.12); }
+
+.inp-wrap { position: relative; margin-bottom: 14px; }
+.inp-wrap .sym {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--dim); font-family: 'DM Mono', monospace; font-size: 13px;
+  pointer-events: none;
+}
+.inp-wrap .inp { padding-left: 26px; margin-bottom: 0; }
+
+.btn-add {
+  width: 100%; padding: 13px;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  color: #000; border: none; border-radius: 9px;
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800;
+  cursor: pointer; margin-top: 4px;
+  transition: opacity .2s, transform .15s;
+}
+.btn-add:hover { opacity: .88; transform: translateY(-1px); }
+
+.form-err {
+  display: none; margin-top: 10px;
+  background: rgba(247,106,106,.1); border: 1px solid rgba(247,106,106,.3);
+  color: var(--red); border-radius: 8px; padding: 10px 13px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+}
+
+.exp-scroll {
+  max-height: 430px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.exp-scroll::-webkit-scrollbar { width: 4px; }
+.exp-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.exp-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 11px; padding: 13px 14px;
+  animation: slideIn .3s ease both;
+}
+.e-ico {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, rgba(124,106,247,.2), rgba(106,247,194,.2));
+  border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.e-name { flex: 1; font-weight: 600; font-size: 14px; word-break: break-word; }
+.e-amt  { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--teal); margin-right: 8px; white-space: nowrap; }
+.btn-del {
+  background: rgba(247,106,106,.15); border: 1px solid rgba(247,106,106,.25);
+  color: var(--red); width: 30px; height: 30px; border-radius: 8px;
+  font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s; flex-shrink: 0;
+}
+.btn-del:hover { background: rgba(247,106,106,.3); }
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp  { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+@keyframes blink   { 0%,100%{opacity:1} 50%{opacity:.3} }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="loginPage">
+  <div class="login-box">
+    <div class="logo">
+      <div class="logo-icon">💸</div>
+      <h1>ExpenseOS</h1>
+      <p>// MULTI-USER TRACKER</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="inUser" placeholder="Enter your username" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="inPass" placeholder="Enter password">
+      </div>
+      <button class="btn-login" onclick="doLogin()">Sign In →</button>
+      <div class="err" id="loginErr"></div>
+      <div class="login-hint">
+        Admin → <b>admin</b> / <b>1234</b><br>
+        Any user → <b>yourname</b> / <b>1234</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ADMIN ═══════════ -->
+<div id="adminPage">
+  <div class="topbar">
+    <div class="brand"><div class="brand-dot"></div>ExpenseOS</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="user-chip">
+        <div class="avatar av-admin">A</div>
+        Admin
+      </div>
+      <button class="btn-out" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="page-tag">// Dashboard</div>
+    <div class="page-title">Admin Overview</div>
+
+    <div class="stats-row">
+      <div class="stat-box s-purple">
+        <div class="s-label">Total Users</div>
+        <div class="s-val" id="aTotalUsers">0</div>
+      </div>
+      <div class="stat-box s-gold" style="animation-delay:.08s">
+        <div class="s-label">Total Expenses</div>
+        <div class="s-val" id="aTotalExp">0</div>
+      </div>
+      <div class="stat-box s-teal" style="animation-delay:.16s">
+        <div class="s-label">Total Spent</div>
+        <div class="s-val" id="aTotalSpent" style="font-size:26px">$0.00</div>
+      </div>
+    </div>
+
+    <div class="section-label">Registered Users</div>
+    <div class="user-rows" id="adminUserRows"></div>
+  </div>
+</div>
+
+<!-- ═══════════ USER ═══════════ -->
+<div id="userPage">
+  <div class="topbar">
+    <div class="brand"><div class="brand-dot"></div>ExpenseOS</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="user-chip">
+        <div class="avatar av-user" id="uAvatar">U</div>
+        <span id="uName">User</span>
+      </div>
+      <button class="btn-out" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="page-tag">// My Finances</div>
+    <div class="page-title">Expense Tracker</div>
+
+    <div class="total-card">
+      <div>
+        <div class="t-label">Total Spent</div>
+        <div class="t-val" id="totalAmt">$0.00</div>
+      </div>
+      <div class="t-count" id="expCount">0 items</div>
+    </div>
+
+    <div class="expense-layout">
+      <div class="panel">
+        <h3>+ Add Expense</h3>
+        <label class="mono-label">Expense Name</label>
+        <input class="inp" type="text" id="eName" placeholder="e.g. Groceries">
+        <label class="mono-label">Amount</label>
+        <div class="inp-wrap">
+          <span class="sym">$</span>
+          <input class="inp" type="number" id="eAmt" placeholder="0.00" min="0.01" step="0.01">
+        </div>
+        <button class="btn-add" onclick="addExpense()">Add Expense ＋</button>
+        <div class="form-err" id="formErr">⚠ Fill in both fields correctly.</div>
+      </div>
+
+      <div class="panel" style="animation-delay:.1s">
+        <h3>My Expenses</h3>
+        <div class="exp-scroll" id="expList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PASS  = '1234';
+const ICONS = ['🍕','🚗','🛍️','💊','🎬','📱','✈️','🏠','📚','☕','🎮','💪','🧴','🍔','🎁','🎵','🏋️','🐶','🌮','⚽'];
+
+// Storage
+function getUsers()       { return JSON.parse(localStorage.getItem('users') || '[]'); }
+function saveUsers(arr)   { localStorage.setItem('users', JSON.stringify(arr)); }
+function getExp(u)        { return JSON.parse(localStorage.getItem('exp_' + u) || '[]'); }
+function saveExp(u, arr)  { localStorage.setItem('exp_' + u, JSON.stringify(arr)); }
+function getCurrent()     { return localStorage.getItem('currentUser'); }
+function setCurrent(u)    { localStorage.setItem('currentUser', u); }
+function clearCurrent()   { localStorage.removeItem('currentUser'); }
+
+// Show/hide pages
+function show(id) {
+  document.getElementById('loginPage').classList.remove('active');
+  document.getElementById('adminPage').classList.remove('active');
+  document.getElementById('userPage').classList.remove('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// Login
+document.getElementById('inUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('inPass').focus(); });
+document.getElementById('inPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogin() {
+  const username = document.getElementById('inUser').value.trim().toLowerCase();
+  const password = document.getElementById('inPass').value;
+  const errEl    = document.getElementById('loginErr');
+
+  if (!username) {
+    errEl.textContent = '⚠ Please enter a username.';
+    errEl.style.display = 'block'; return;
+  }
+  if (password !== PASS) {
+    errEl.textContent = '⚠ Wrong password. Hint: 1234';
+    errEl.style.display = 'block'; return;
+  }
+
+  errEl.style.display = 'none';
+  setCurrent(username);
+
+  // Save non-admin users to the list
+  if (username !== 'admin') {
+    const list = getUsers();
+    if (!list.includes(username)) {
+      list.push(username);
+      saveUsers(list);
+    }
+  }
+
+  document.getElementById('inUser').value = '';
+  document.getElementById('inPass').value = '';
+
+  if (username === 'admin') {
+    loadAdmin();
+    show('adminPage');
+  } else {
+    loadUser(username);
+    show('userPage');
+  }
+}
+
+// Logout
+function doLogout() {
+  clearCurrent();
+  show('loginPage');
+}
+
+// ── ADMIN ──
+function loadAdmin() {
+  const users = getUsers();
+  let totalExp = 0, totalSpent = 0;
+  users.forEach(u => {
+    const exps = getExp(u);
+    totalExp   += exps.length;
+    totalSpent += exps.reduce((s, e) => s + e.amount, 0);
+  });
+
+  document.getElementById('aTotalUsers').textContent = users.length;
+  document.getElementById('aTotalExp').textContent   = totalExp;
+  document.getElementById('aTotalSpent').textContent = '$' + totalSpent.toFixed(2);
+
+  const container = document.getElementById('adminUserRows');
+
+  if (users.length === 0) {
+    container.innerHTML = `<div class="empty-box"><div class="big">👥</div>No users have logged in yet.</div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  users.forEach((u, i) => {
+    const exps  = getExp(u);
+    const spent = exps.reduce((s, e) => s + e.amount, 0);
+    const row   = document.createElement('div');
+    row.className = 'user-row';
+    row.style.animationDelay = (i * 0.07) + 's';
+    row.innerHTML =
+      '<div class="u-avatar">' + u[0].toUpperCase() + '</div>' +
+      '<div class="u-name">'   + escHtml(u) + '</div>' +
+      '<div class="u-tag">'    + exps.length + ' expense' + (exps.length !== 1 ? 's' : '') + '</div>' +
+      '<div class="u-tag" style="color:var(--teal);border-color:rgba(106,247,194,.3);background:rgba(106,247,194,.06);">$' + spent.toFixed(2) + '</div>';
+    container.appendChild(row);
+  });
+}
+
+// ── USER ──
+function loadUser(username) {
+  document.getElementById('uName').textContent   = username;
+  document.getElementById('uAvatar').textContent = username[0].toUpperCase();
+  renderExpenses();
+}
+
+function renderExpenses() {
+  const u    = getCurrent();
+  const exps = getExp(u);
+  const list = document.getElementById('expList');
+  const total= exps.reduce((s, e) => s + e.amount, 0);
+
+  document.getElementById('totalAmt').textContent = '$' + total.toFixed(2);
+  document.getElementById('expCount').textContent = exps.length + ' item' + (exps.length !== 1 ? 's' : '');
+
+  if (exps.length === 0) {
+    list.innerHTML = '<div class="empty-box"><div class="big">📭</div>No expenses yet.<br>Add one on the left!</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  exps.forEach((e, i) => {
+    const item = document.createElement('div');
+    item.className = 'exp-item';
+    item.style.animationDelay = (i * 0.05) + 's';
+    item.innerHTML =
+      '<div class="e-ico">'  + ICONS[i % ICONS.length] + '</div>' +
+      '<div class="e-name">' + escHtml(e.name) + '</div>' +
+      '<div class="e-amt">$' + e.amount.toFixed(2) + '</div>' +
+      '<button class="btn-del" onclick="deleteExpense(' + i + ')">✕</button>';
+    list.appendChild(item);
+  });
+}
+
+function addExpense() {
+  const name   = document.getElementById('eName').value.trim();
+  const amtVal = parseFloat(document.getElementById('eAmt').value);
+  const errEl  = document.getElementById('formErr');
+
+  if (!name || isNaN(amtVal) || amtVal <= 0) {
+    errEl.style.display = 'block';
+    setTimeout(() => { errEl.style.display = 'none'; }, 3000);
+    return;
+  }
+
+  errEl.style.display = 'none';
+  const u    = getCurrent();
+  const exps = getExp(u);
+  exps.push({ name: name, amount: Math.round(amtVal * 100) / 100 });
+  saveExp(u, exps);
+
+  document.getElementById('eName').value = '';
+  document.getElementById('eAmt').value  = '';
+  document.getElementById('eName').focus();
+  renderExpenses();
+}
+
+function deleteExpense(index) {
+  const u    = getCurrent();
+  const exps = getExp(u);
+  exps.splice(index, 1);
+  saveExp(u, exps);
+  renderExpenses();
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+document.getElementById('eName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('eAmt').focus(); });
+document.getElementById('eAmt').addEventListener('keydown',  e => { if (e.key === 'Enter') addExpense(); });
+
+// Auto-restore session on page load
+(function init() {
+  const u = getCurrent();
+  if (!u) { show('loginPage'); return; }
+  if (u === 'admin') { loadAdmin(); show('adminPage'); }
+  else               { loadUser(u); show('userPage'); }
+})();
+</script>
+</body>
+</html>
